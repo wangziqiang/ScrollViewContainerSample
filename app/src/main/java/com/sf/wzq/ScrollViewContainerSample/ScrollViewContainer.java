@@ -9,11 +9,10 @@ import android.widget.ScrollView;
 
 /**
  * Created by WangZiQiang on 2015/5/15.<br/>
- * ·ÂÕÕÌÔ±¦ÉÌÆ·ÏêÇéÒ³µÄÉÏÀ­(ÏÂÀ­)×Ô¶¯»¬¶¯µÄĞ§¹û<br></>
- * ±¾View±ØĞëÖÁÉÙ°üº¬2¸öScrollView£¬Ò²¿ÉÒÔ°üº¬2¸öScrollViewºÍ1¸öCenterView
+ * ä»¿æ·˜å®å•†å“è¯¦æƒ…é¡µçš„ä¸Šæ‹‰(ä¸‹æ‹‰)è‡ªåŠ¨æ»‘åŠ¨çš„æ•ˆæœ<br></>
  */
 public class ScrollViewContainer extends RelativeLayout {
-    private int childCount = 2;//Ä¬ÈÏÖ»°üº¬2¸öScrollView
+    private int childCount = 2;//é»˜è®¤åªåŒ…å«2ä¸ªScrollView
 
     public ScrollViewContainer(Context context) {
         super(context);
@@ -26,19 +25,20 @@ public class ScrollViewContainer extends RelativeLayout {
     public ScrollViewContainer(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.ScrollViewContainer);
-        childCount = a.getInt(R.styleable.ScrollViewContainer_children_count, 2);//Ä¬ÈÏÖ»°üº¬2¸öScrollView
+        childCount = a.getInt(R.styleable.ScrollViewContainer_children_count, 2);//é»˜è®¤åªæœ‰2ä¸ªchild
         a.recycle();
         init();
     }
 
-    private boolean isMeasure = false;//Ö»²âÁ¿Ò»´Î
+    private boolean isMeasure = false;//é»˜è®¤åªæµ‹é‡ä¸€æ¬¡
     private ScrollView topSV;
     private ScrollView bottomSV;
     private View centerView;
     private int topSVHeight;
     private int centerViewHeight;
-    private int mWidth;//ScrollViewContainerµÄ¿í¶È
-    private int mHeight;//ScrollViewContainerµÄ¸ß¶È
+    private int mWidth;//ScrollViewContainerçš„å®½åº¦
+    private int mHeight;//ScrollViewContainerçš„é«˜åº¦
+    private int mMoveLength;//æ‰‹æŒ‡ç§»åŠ¨çš„è·ç¦»
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
@@ -55,6 +55,17 @@ public class ScrollViewContainer extends RelativeLayout {
                 bottomSV = (ScrollView) getChildAt(2);
             }
         }
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        if(childCount == 2){
+            topSV.layout(0,mMoveLength,mWidth,mMoveLength+topSVHeight);
+            bottomSV.layout(0,mMoveLength+topSVHeight,mWidth,mMoveLength+topSVHeight+bottomSV.getMeasuredHeight());
+        }else{
+
+        }
+
     }
 
     private void init() {
