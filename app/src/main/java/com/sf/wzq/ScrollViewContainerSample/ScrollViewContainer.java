@@ -26,14 +26,14 @@ public class ScrollViewContainer extends RelativeLayout {
     private Context mContext;
     private String TAG = "ScrollViewContainer";
     private int minFlingVelocity, maxFlingVelocity, mTouchSlop;
-    private MyTask mTask;
+    private MyTimer mTask;
 
     public ScrollViewContainer(Context context) {
-        super(context);
+        this(context, null);
     }
 
     public ScrollViewContainer(Context context, AttributeSet attrs) {
-        super(context, attrs);
+        this(context, attrs, 0);
     }
 
     public ScrollViewContainer(Context context, AttributeSet attrs, int defStyleAttr) {
@@ -53,14 +53,14 @@ public class ScrollViewContainer extends RelativeLayout {
         Log.i(TAG, "getScaledMinimumFlingVelocity() = " + minFlingVelocity);
         Log.i(TAG, "getScaledTouchSlop() = " + mTouchSlop);
         Log.i(TAG, "getScaledMaximumFlingVelocity() = " + maxFlingVelocity);
-        mTask = new MyTask(mHandler);
+        mTask = new MyTimer(mHandler);
+        Log.i(TAG, "childCount = " + childCount);
     }
 
     private boolean isMeasure = false;//默认只测量一次
     private ScrollView topSV;
     private ScrollView bottomSV;
     private View centerView;
-    private int topSVHeight;
     private int centerViewHeight;
     private int mWidth;//ScrollViewContainer的宽度
     private int mHeight;//ScrollViewContainer的高度
@@ -79,52 +79,88 @@ public class ScrollViewContainer extends RelativeLayout {
     private static final int BOTTOM_SCROLLVIEW = 1;//当前可见的view是bottomScrollView
     private int mCurrentView = TOP_SCROLLVIEW;//默认当前可见的view
 
+    private int topSCHeight;
+    private int bottomSCHeight;
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        if (!isMeasure) {
-            isMeasure = true;
-            mWidth = getMeasuredWidth();
-            mHeight = getMeasuredHeight();
-            if (childCount == 2) {
-                topSV = (ScrollView) getChildAt(0);
-                bottomSV = (ScrollView) getChildAt(1);
-            } else if (childCount == 3) {
-                topSV = (ScrollView) getChildAt(0);
-                centerView = getChildAt(1);
-                bottomSV = (ScrollView) getChildAt(2);
-            }
+//        if (!isMeasure) {
+        isMeasure = true;
+        mWidth = getMeasuredWidth();
+        mHeight = getMeasuredHeight();
+        if (childCount == 2) {
+            topSV = (ScrollView) getChildAt(0);
+            topSCHeight = topSV.getMeasuredHeight();
+            bottomSV = (ScrollView) getChildAt(1);
+            bottomSCHeight = topSV.getMeasuredHeight();
+            Log.i(TAG, "mHeight = " + mHeight);
+            Log.i(TAG, "topSCHeight = " + topSCHeight);
+            Log.i(TAG, "bottomSCHeight = " + bottomSCHeight);
+        } else if (childCount == 3) {
+            topSV = (ScrollView) getChildAt(0);
+            centerView = getChildAt(1);
+            bottomSV = (ScrollView) getChildAt(2);
         }
+//        }
     }
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        super.onLayout(changed, l, t, r, b);
         if (childCount == 2) {
-            topSV.layout(0, mMoveLength, mWidth, mMoveLength + topSVHeight);
-            bottomSV.layout(0, mMoveLength + topSVHeight, mWidth, mMoveLength + topSVHeight + bottomSV.getMeasuredHeight());
+            topSV.layout(0, mMoveLength, mWidth, mMoveLength + topSCHeight);
+            bottomSV.layout(0, mMoveLength + topSCHeight, mWidth, mMoveLength + topSCHeight + bottomSCHeight);
         } else {
 
         }
+        Log.i(TAG, "mMoveLength = " + mMoveLength);
 
     }
 
     //检查当前ScrollViewContainer的状态
     private void checkState() {
+        Log.i(TAG, "checkState__mCurrentView = " + mCurrentView);
         //检查顶部ScrollView的状态
+        Log.i(TAG, "checkState__topSV.getScrollY() = " + topSV.getScrollY());
+        Log.i(TAG, "checkState__topSCHeight = " + topSCHeight);
+        Log.i(TAG, "checkState__topSV.getChildAt(0).getMeasuredHeight() = " + topSV.getChildAt(0).getMeasuredHeight());
         if (mCurrentView == TOP_SCROLLVIEW) {
-            if ((topSV.getScaleY() + topSV.getMeasuredHeight()) >= topSV.getChildAt(0).getMeasuredHeight())
+            if ((topSV.getScrollY() + topSCHeight) >= topSV.getChildAt(0).getMeasuredHeight()) {
                 mState = STATE_CAN_UP;//此时：topScrollView可见，并且到底，可以上滑
-            else
+            } else
                 mState = STATE_TOP_SC;//此时：topScrollView可见，并且没到底
         }
         //检查底部ScrollView的状态
+        Log.i(TAG, "checkState__bottomSV.getScrollY() = " + bottomSV.getScrollY());
         if (mCurrentView == BOTTOM_SCROLLVIEW) {
-            if (bottomSV.getScaleY() <= 0)
+            if (bottomSV.getScrollY() <= 0)
                 mState = STATE_CAN_DOWN;//此时：bottomScrollView可见，并且到顶，可以下滑
             else
                 mState = STATE_BOTTOM_SC;//此时：bottomScrollView可见，并且没到顶
         }
-
+        String strState = "STATE_TOP_SC";
+        switch (mState) {
+            case 10:
+                strState = "STATE_TOP_SC";
+                break;
+            case 11:
+                strState = "STATE_CAN_UP";
+                break;
+            case 12:
+                strState = "STATE_AUTO_UP";
+                break;
+            case 13:
+                strState = "STATE_CAN_DOWN";
+                break;
+            case 14:
+                strState = "STATE_AUTO_DOWN";
+                break;
+            case 15:
+                strState = "STATE_BOTTOM_SC";
+                break;
+        }
+        Log.i(TAG, "mState = " + strState);
     }
 
     /**
@@ -145,10 +181,6 @@ public class ScrollViewContainer extends RelativeLayout {
                 mCurrentView = BOTTOM_SCROLLVIEW;
                 mMoveLength = -mHeight;
                 break;
-            default:
-                mCurrentView = TOP_SCROLLVIEW;
-                mMoveLength = 0;
-                break;
         }
     }
 
@@ -168,8 +200,8 @@ public class ScrollViewContainer extends RelativeLayout {
                 velocityTracker.addMovement(ev);
                 break;
             case MotionEvent.ACTION_MOVE:
+                checkState();
                 velocityTracker.addMovement(ev);
-
                 if (mState == STATE_CAN_UP) { // 如果能上滑
                     mMoveLength += (ev.getY() - mLastY);
                     if (mMoveLength > 0) {//此时用户下滑了，到了 STATE_TOP_SC 状态
@@ -195,11 +227,12 @@ public class ScrollViewContainer extends RelativeLayout {
                 mLastY = ev.getY();
                 break;
             case MotionEvent.ACTION_UP:
+                checkState();
                 mLastY = ev.getY();
                 velocityTracker.addMovement(ev);
                 velocityTracker.computeCurrentVelocity(1000);
                 float yVelocity = velocityTracker.getYVelocity();
-                if (mState == STATE_TOP_SC || mState == STATE_BOTTOM_SC)
+                if (mState == 0 || mState == -mHeight)
                     break;
                 //如果速度够快
                 if (Math.abs(yVelocity) > minFlingVelocity) {
@@ -215,8 +248,16 @@ public class ScrollViewContainer extends RelativeLayout {
                         setState(STATE_AUTO_UP);
                     }
                 }
+                Log.i(TAG, "yVelocity = " + yVelocity);
+                Log.i(TAG, "minFlingVelocity = " + minFlingVelocity);
+                Log.i(TAG, "mMoveLength = " + mMoveLength);
                 // 不断invoke requestLayout();
-                velocityTracker.recycle();
+                mTask.schedule(2);
+                try {
+                    velocityTracker.recycle();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 break;
         }
         try {
@@ -253,7 +294,7 @@ public class ScrollViewContainer extends RelativeLayout {
         public void schedule(long period) {
             cancel();
             myTask = new MyTask(handler);
-            timer.schedule(myTask, period);
+            timer.schedule(myTask,0, period);
         }
 
         public void cancel() {
@@ -268,6 +309,7 @@ public class ScrollViewContainer extends RelativeLayout {
     private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
+            Log.i(TAG,"handleMessage____________");
             if (mMoveLength != 0 || mMoveLength != -mHeight) {
                 if (mState == STATE_AUTO_UP) {
                     mMoveLength -= speed;
@@ -277,7 +319,7 @@ public class ScrollViewContainer extends RelativeLayout {
                 } else if (mState == STATE_AUTO_DOWN) {
                     mMoveLength += speed;
                     if (mMoveLength >= 0) {
-                        setState(STATE_AUTO_UP);
+                        setState(STATE_CAN_UP);
                     }
                 } else {
                     mTask.cancel();
