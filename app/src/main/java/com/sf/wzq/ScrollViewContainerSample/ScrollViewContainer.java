@@ -2,12 +2,19 @@ package com.sf.wzq.ScrollViewContainerSample;
 
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.os.Handler;
+import android.os.Message;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.widget.RelativeLayout;
 import android.widget.ScrollView;
+
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Created by WangZiQiang on 2015/5/15.<br/>
@@ -16,6 +23,10 @@ import android.widget.ScrollView;
 public class ScrollViewContainer extends RelativeLayout {
     private int childCount = 2;//默认只包含2个ScrollView
     private VelocityTracker velocityTracker;
+    private Context mContext;
+    private String TAG = "ScrollViewContainer";
+    private int minFlingVelocity, maxFlingVelocity, mTouchSlop;
+    private MyTask mTask;
 
     public ScrollViewContainer(Context context) {
         super(context);
@@ -27,10 +38,22 @@ public class ScrollViewContainer extends RelativeLayout {
 
     public ScrollViewContainer(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+        mContext = context;
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.ScrollViewContainer);
         childCount = a.getInt(R.styleable.ScrollViewContainer_children_count, 2);//默认只有2个child
         a.recycle();
-//        init();
+        init();
+    }
+
+    private void init() {
+        ViewConfiguration viewConfiguration = ViewConfiguration.get(mContext);
+        minFlingVelocity = viewConfiguration.getScaledMinimumFlingVelocity();
+        maxFlingVelocity = viewConfiguration.getScaledMaximumFlingVelocity();
+        mTouchSlop = viewConfiguration.getScaledTouchSlop();
+        Log.i(TAG, "getScaledMinimumFlingVelocity() = " + minFlingVelocity);
+        Log.i(TAG, "getScaledTouchSlop() = " + mTouchSlop);
+        Log.i(TAG, "getScaledMaximumFlingVelocity() = " + maxFlingVelocity);
+        mTask = new MyTask(mHandler);
     }
 
     private boolean isMeasure = false;//默认只测量一次
@@ -151,22 +174,117 @@ public class ScrollViewContainer extends RelativeLayout {
                     mMoveLength += (ev.getY() - mLastY);
                     if (mMoveLength > 0) {//此时用户下滑了，到了 STATE_TOP_SC 状态
                         setState(STATE_TOP_SC);
-                    }else if(mMoveLength <= -mHeight){
+                    } else if (mMoveLength <= -mHeight) {//此时用户上滑了超过mHeight的距离
                         setState(STATE_CAN_DOWN);
                     }
+                    requestLayout();//根据手势改变layout参数
                 } else if (mState == STATE_CAN_DOWN) {//如果能下滑
-
+                    mMoveLength += (ev.getY() - mLastY);
+                    if (mMoveLength < -mHeight) {//此时用户上滑了，到了 STATE_BOTTOM_SC 的状态
+                        setState(STATE_BOTTOM_SC);
+                    } else if (mMoveLength >= 0) {//此时用户下滑了超过mHeight的距离
+                        setState(STATE_CAN_UP);
+                    }
+                    requestLayout();//根据手势改变layout参数
                 } else {//其他状态
-
+                    if (mMoveLength == 0)
+                        setState(STATE_TOP_SC);
+                    else if (mMoveLength == -mHeight)
+                        setState(STATE_BOTTOM_SC);
                 }
                 mLastY = ev.getY();
                 break;
             case MotionEvent.ACTION_UP:
+                mLastY = ev.getY();
+                velocityTracker.addMovement(ev);
+                velocityTracker.computeCurrentVelocity(1000);
+                float yVelocity = velocityTracker.getYVelocity();
+                if (mState == STATE_TOP_SC || mState == STATE_BOTTOM_SC)
+                    break;
+                //如果速度够快
+                if (Math.abs(yVelocity) > minFlingVelocity) {
+                    if (yVelocity > 0) {//下滑
+                        setState(STATE_AUTO_DOWN);
+                    } else {
+                        setState(STATE_AUTO_UP);
+                    }
+                } else {//
+                    if (mMoveLength > -mHeight / 2) {
+                        setState(STATE_AUTO_DOWN);
+                    } else if (mMoveLength <= -mHeight / 2) {
+                        setState(STATE_AUTO_UP);
+                    }
+                }
+                // 不断invoke requestLayout();
+                velocityTracker.recycle();
                 break;
         }
-        super.dispatchTouchEvent(ev);
+        try {
+            super.dispatchTouchEvent(ev);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return true;
     }
 
+    class MyTask extends TimerTask {
+        private Handler handler;
+
+        public MyTask(Handler handler) {
+            this.handler = handler;
+        }
+
+        @Override
+        public void run() {
+            handler.obtainMessage().sendToTarget();
+        }
+    }
+
+    class MyTimer {
+        private Handler handler;
+        private MyTask myTask;
+        private Timer timer;
+
+        public MyTimer(Handler handler) {
+            this.handler = handler;
+            timer = new Timer();
+        }
+
+        public void schedule(long period) {
+            cancel();
+            myTask = new MyTask(handler);
+            timer.schedule(myTask, period);
+        }
+
+        public void cancel() {
+            if (myTask != null) {
+                myTask.cancel();
+                myTask = null;
+            }
+        }
+    }
+
+    private int speed = 9;
+    private Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            if (mMoveLength != 0 || mMoveLength != -mHeight) {
+                if (mState == STATE_AUTO_UP) {
+                    mMoveLength -= speed;
+                    if (mMoveLength <= -mHeight) {
+                        setState(STATE_CAN_DOWN);
+                    }
+                } else if (mState == STATE_AUTO_DOWN) {
+                    mMoveLength += speed;
+                    if (mMoveLength >= 0) {
+                        setState(STATE_AUTO_UP);
+                    }
+                } else {
+                    mTask.cancel();
+                }
+                requestLayout();
+            }
+        }
+    };
 
 }
