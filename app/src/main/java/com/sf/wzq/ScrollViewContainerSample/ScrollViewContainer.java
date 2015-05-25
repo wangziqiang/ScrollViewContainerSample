@@ -58,7 +58,6 @@ public class ScrollViewContainer extends RelativeLayout {
         Log.i(TAG, "childCount = " + childCount);
     }
 
-    private boolean isMeasure = false;//默认只测量一次
     private ScrollView topSV;
     private ScrollView bottomSV;
     private View centerView;
@@ -86,24 +85,22 @@ public class ScrollViewContainer extends RelativeLayout {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-//        if (!isMeasure) {
-        isMeasure = true;
         mWidth = getMeasuredWidth();
         mHeight = getMeasuredHeight();
         if (childCount == 2) {
             topSV = (ScrollView) getChildAt(0);
-            topSCHeight = topSV.getMeasuredHeight();
             bottomSV = (ScrollView) getChildAt(1);
-            bottomSCHeight = topSV.getMeasuredHeight();
-            Log.i(TAG, "mHeight = " + mHeight);
-            Log.i(TAG, "topSCHeight = " + topSCHeight);
-            Log.i(TAG, "bottomSCHeight = " + bottomSCHeight);
         } else if (childCount == 3) {
             topSV = (ScrollView) getChildAt(0);
             centerView = getChildAt(1);
             bottomSV = (ScrollView) getChildAt(2);
+            centerViewHeight = centerView.getMeasuredHeight();
         }
-//        }
+        topSCHeight = topSV.getMeasuredHeight();
+        bottomSCHeight = topSV.getMeasuredHeight();
+        Log.i(TAG, "mHeight = " + mHeight);
+        Log.i(TAG, "topSCHeight = " + topSCHeight);
+        Log.i(TAG, "bottomSCHeight = " + bottomSCHeight);
     }
 
     @Override
@@ -112,8 +109,10 @@ public class ScrollViewContainer extends RelativeLayout {
         if (childCount == 2) {
             topSV.layout(0, mMoveLength, mWidth, mMoveLength + topSCHeight);
             bottomSV.layout(0, mMoveLength + topSCHeight, mWidth, mMoveLength + topSCHeight + bottomSCHeight);
-        } else {
-
+        } else if (childCount == 3) {
+            topSV.layout(0, mMoveLength, mWidth, mMoveLength + topSCHeight);
+            centerView.layout(0, mMoveLength + topSCHeight, mWidth, mMoveLength + topSCHeight + centerViewHeight);
+            bottomSV.layout(0, mMoveLength + topSCHeight + centerViewHeight, mWidth, mMoveLength + topSCHeight + bottomSCHeight);
         }
         Log.i(TAG, "mMoveLength = " + mMoveLength);
 
@@ -295,7 +294,7 @@ public class ScrollViewContainer extends RelativeLayout {
         public void schedule(long period) {
             cancel();
             myTask = new MyTask(handler);
-            timer.schedule(myTask,0, period);
+            timer.schedule(myTask, 0, period);
         }
 
         public void cancel() {
@@ -310,7 +309,7 @@ public class ScrollViewContainer extends RelativeLayout {
     private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
-            Log.i(TAG,"handleMessage____________");
+            Log.i(TAG, "handleMessage____________");
             if (mMoveLength != 0 || mMoveLength != -mHeight) {
                 if (mState == STATE_AUTO_UP) {
                     mMoveLength -= speed;
