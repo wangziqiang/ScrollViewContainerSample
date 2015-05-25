@@ -27,6 +27,7 @@ public class ScrollViewContainer extends RelativeLayout {
     private String TAG = "ScrollViewContainer";
     private int minFlingVelocity, maxFlingVelocity, mTouchSlop;
     private MyTimer mTask;
+    private int mEvents;
 
     public ScrollViewContainer(Context context) {
         this(context, null);
@@ -198,11 +199,11 @@ public class ScrollViewContainer extends RelativeLayout {
                 else
                     velocityTracker.clear();
                 velocityTracker.addMovement(ev);
+                mEvents = 0;//置为一次触摸的开始
                 break;
             case MotionEvent.ACTION_MOVE:
-                checkState();
                 velocityTracker.addMovement(ev);
-                if (mState == STATE_CAN_UP) { // 如果能上滑
+                if (mEvents == 0 && mState == STATE_CAN_UP) { // 如果能上滑
                     mMoveLength += (ev.getY() - mLastY);
                     if (mMoveLength > 0) {//此时用户下滑了，到了 STATE_TOP_SC 状态
                         setState(STATE_TOP_SC);
@@ -210,7 +211,7 @@ public class ScrollViewContainer extends RelativeLayout {
                         setState(STATE_CAN_DOWN);
                     }
                     requestLayout();//根据手势改变layout参数
-                } else if (mState == STATE_CAN_DOWN) {//如果能下滑
+                } else if (mEvents == 0 && mState == STATE_CAN_DOWN) {//如果能下滑
                     mMoveLength += (ev.getY() - mLastY);
                     if (mMoveLength < -mHeight) {//此时用户上滑了，到了 STATE_BOTTOM_SC 的状态
                         setState(STATE_BOTTOM_SC);
@@ -219,6 +220,7 @@ public class ScrollViewContainer extends RelativeLayout {
                     }
                     requestLayout();//根据手势改变layout参数
                 } else {//其他状态
+                    mEvents++;
                     if (mMoveLength == 0)
                         setState(STATE_TOP_SC);
                     else if (mMoveLength == -mHeight)
@@ -227,12 +229,11 @@ public class ScrollViewContainer extends RelativeLayout {
                 mLastY = ev.getY();
                 break;
             case MotionEvent.ACTION_UP:
-                checkState();
                 mLastY = ev.getY();
                 velocityTracker.addMovement(ev);
                 velocityTracker.computeCurrentVelocity(1000);
                 float yVelocity = velocityTracker.getYVelocity();
-                if (mState == 0 || mState == -mHeight)
+                if (mState == STATE_TOP_SC || mState == STATE_BOTTOM_SC)
                     break;
                 //如果速度够快
                 if (Math.abs(yVelocity) > minFlingVelocity) {
